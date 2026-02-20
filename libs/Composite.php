@@ -13,23 +13,22 @@ use LogicException;
 /**
  * Označuje složená z dalších hodnot (scalar nebo composite)
  * složených struktur (Composite).
- * - List/Array [1, 2, 3] - složený z více hodnot
- * - Dictionary/Map {a: 1, b: 2} - složený z párů
- * - Set {1, 2, 3} - kolekce unikátních hodnot
+ * - List [1, 2, 3] - složený z více hodnot
+ * - Map {a: 1, b: 2} - složený z párů, podle typu bud Dict, nebo Record
  * - Tuple (1, "text", true) - uspořádaná n-tice
- * - Objekty/struktury s fieldy
  */
 class Composite implements Value, HasRefs
 {
 
 	const TypeList = 'List';
 	const TypeDict = 'Dict';
+	const TypeRecord = 'Record';
 	const TypeTuple = 'Tuple';
 
 	/**
-	 * @var array<mixed> | \stdClass
+	 * @var array<mixed> | array<string, mixed>
 	 */
-	private $items;
+	private array $items;
 
 	private string $type;
 
@@ -38,34 +37,56 @@ class Composite implements Value, HasRefs
 	 */
 	private function __construct($items, string $type)
 	{
-		$this->items = $items;
+		// self::assertItems($items);
+		$this->items = (array) $items;
 		$this->type = $type;
 	}
 
 
 
 	/**
-	 * @param list<Value | symbol> $items
+	 * @param list<Value | string> $items
 	 */
-	static function List_(array $items): self
+	static function List_(array $items, string $type = self::TypeList): self
 	{
-		return new self($items, self::TypeList);
+		return new self($items, $type);
 	}
 
 
 
 	/**
-	 * @param array<string, Value | symbol> | \stdClass $items
+	 * @param array<string, Value | string> | \stdClass $items
 	 */
-	static function Dict_($items): self
+	static function Dict_($items, string $type = self::TypeDict): self
 	{
-		return new self((object)$items, self::TypeDict);
+		return new self($items, $type);
 	}
 
 
 
 	/**
-	 * @param list<Value | symbol> $items
+	 * @param array<string, Value | string> | \stdClass $items
+	 */
+	static function Record_($items, string $type = self::TypeRecord): self
+	{
+		return new self($items, $type);
+	}
+
+
+
+	/**
+	 * @param array<string, Value | string> | \stdClass $items
+	 * @param string $type Aka `Dict<Str>`, `{name: Str, sex: Sex, age: Int}`.
+	 */
+	static function Map_($items, string $type): self
+	{
+		return new self((array) $items, $type);
+	}
+
+
+
+	/**
+	 * @param list<Value | string> $items
 	 */
 	static function Tuple_(array $items): self
 	{
@@ -86,7 +107,9 @@ class Composite implements Value, HasRefs
 	 */
 	function getItems()
 	{
-		return $this->items;
+		return $this->type === self::TypeDict
+			? (object) $this->items
+			: $this->items;
 	}
 
 
@@ -96,7 +119,20 @@ class Composite implements Value, HasRefs
 	 */
 	function refs(): array
 	{
-		throw new LogicException("Comming soon... (2026.02.15 01:01:53 CET)");
+		if (empty($this->items)) {
+			return [];
+		}
+
+		$xs = [];
+		foreach ($this->items as $v) {
+			if (is_string($v)) {
+				$xs[] = $v;
+			}
+			elseif ($v instanceof HasRefs) {
+				$xs = array_merge($xs, $v->refs());
+			}
+		}
+		return array_unique($xs); // @phpstan-ignore return.type
 	}
 
 
@@ -106,21 +142,21 @@ class Composite implements Value, HasRefs
 		switch ($this->type) {
 			case self::TypeList:
 				$xs = [];
-				foreach ((array) $this->items as $v) {
+				foreach ($this->items as $v) {
 					$xs[] = "{$v}";
 				}
 				return '[' . implode(', ', $xs) . ']';
 
 			case self::TypeDict:
 				$xs = [];
-				foreach ((array) $this->items as $k => $v) {
+				foreach ($this->items as $k => $v) {
 					$xs[] = "{$k}: {$v}";
 				}
 				return '{' . implode(', ', $xs) . '}';
 
 			case self::TypeTuple:
 				$xs = [];
-				foreach ((array) $this->items as $v) {
+				foreach ($this->items as $v) {
 					$xs[] = "{$v}";
 				}
 				return '(' . implode(', ', $xs) . ')';
