@@ -153,7 +153,7 @@ class Scope implements Value, HasRefs
 
 
 	/**
-	 * @param array<string, Value> $xs
+	 * @param array<string, Value | string> $xs
 	 */
 	private static function assertLetsIsExpected(array $xs): void
 	{

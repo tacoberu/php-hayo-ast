@@ -33,3 +33,13 @@ interface Value
 	function __toString(): string;
 
 }
+
+
+
+/**
+ * Cokoliv co se chová jako fukce. Vyžaduje to argumenty.
+ */
+interface Applicable extends Value
+{
+
+}

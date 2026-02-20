@@ -34,7 +34,7 @@ use InvalidArgumentException;
  * - Lambda: `(x) -> (y) -> x + y`
  * - Scope: `(x) -> y = 55; x + y`
  */
-class Lambda implements Value, HasRefs
+class Lambda implements Value, HasRefs, Applicable
 {
 
 	/**
@@ -52,7 +52,7 @@ class Lambda implements Value, HasRefs
 
 	/**
 	 * @param list<string> $args
-	 * @param Value | string $expr
+	 * @param Expr | string $expr
 	 */
 	function __construct(array $args, $expr)
 	{
@@ -120,12 +120,15 @@ class Lambda implements Value, HasRefs
 
 
 
+	/**
+	 * @param string | Value $src
+	 */
 	private static function assertExprOfLambda($src): void
 	{
-		if (is_string($src) || $src instanceof Value) {
+		if (is_string($src) || $src instanceof Value) { // @phpstan-ignore instanceof.alwaysTrue, booleanOr.alwaysTrue
 			return;
 		}
-		throw new InvalidArgumentException("Support Value | string: " . print_r($src, True));
+		throw new InvalidArgumentException("Support Value | string: " . print_r($src, True)); // @phpstan-ignore deadCode.unreachable
 	}
 
 

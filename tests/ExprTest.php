@@ -14,11 +14,15 @@ use PHPUnit\Framework\Attributes\DataProvider;
 class ExprTest extends TestCase
 {
 
+	/**
+	 * @param array<string> $expectedRefs
+	 */
 	#[DataProvider("dataScalar")]
-	function testScalar(Expr $token, string $expected)
+	function testScalar(Expr $token, string $expectedPrint, array $expectedRefs)
 	{
-		$this->assertSame($expected, (string) $token);
-		//~ dump($ast->toCode());
+		$this->assertSame($expectedPrint, (string) $token);
+		//~ dump($token->toCode());
+		$this->assertSame($expectedRefs, $token->refs());
 	}
 
 
@@ -26,13 +30,20 @@ class ExprTest extends TestCase
 	static function dataScalar()
 	{
 		return [
-			'string.len "Lorem"' => [
-				Expr::Func_("string.len", [Scalar::Str_("Lorem")]),
-				"string.len 'Lorem' : Str",
+			'str.len "Lorem"' => [
+				Expr::Func_("str.len", [Scalar::Str_("Lorem")]),
+				"str.len 'Lorem' : Str",
+				['str.len'],
 			],
 			"42 + 1" => [
 				Expr::Bin_(Scalar::Int_(42), "+", Scalar::Int_(1)),
 				"42 : Int + 1 : Int",
+				['+'],
+			],
+			"a + 1" => [
+				Expr::Bin_('a', "+", Scalar::Int_(1)),
+				"a + 1 : Int",
+				['a', '+'],
 			],
 		];
 	}

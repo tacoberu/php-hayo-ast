@@ -108,11 +108,11 @@ class Expr implements Value, ArrayAccess, HasRefs
 		$items = $this->items;
 
 		// func
-		if ($items[0] instanceof BuildinFunc) {
+		if ($items[0] instanceof Applicable && !$items[0] instanceof Lambda) {
 			array_shift($items);
 		}
 		// operator
-		elseif (isset($items[1]) && $items[1] instanceof BuildinFunc) {
+		elseif (isset($items[1]) && $items[1] instanceof Applicable && !$items[1] instanceof Lambda) {
 			$fn1 = array_shift($items);
 			array_shift($items);
 			$items = array_merge([$fn1], $items);
@@ -123,12 +123,15 @@ class Expr implements Value, ArrayAccess, HasRefs
 			if (is_string($x)) {
 				$xs[] = $x;
 			}
+			else if ($x instanceof Lambda) {
+				$xs = array_merge($xs, array_diff($x->refs(), $x->getArgs()));
+			}
 			else if ($x instanceof HasRefs) {
 				$xs = array_merge($xs, $x->refs());
 			}
 		}
 
-		return array_unique($xs);
+		return array_unique($xs); // @phpstan-ignore return.type
 	}
 
 

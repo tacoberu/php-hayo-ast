@@ -8,17 +8,35 @@
 namespace Taco\Hayo;
 
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 
 class ScopeTest extends TestCase
 {
 
-	function testScalar()
+	/**
+	 * @param array<string> $expectedRefs
+	 */
+	#[DataProvider("dataScalar")]
+	function testScalar(Scope $token, string $expectedPrint, array $expectedRefs)
 	{
-		$inst = new Scope(['a' => Scalar::Int_(42)],
-			Expr::Func_('inc', ['a'])
-			);
-		$this->assertSame("{a = 42 : Int; inc a}", (string) $inst);
+		$this->assertSame($expectedPrint, (string) $token);
+		$this->assertSame($expectedRefs, $token->refs());
+	}
+
+
+
+	static function dataScalar()
+	{
+		return [
+			'a = 42; inc a' => [
+				new Scope(['a' => Scalar::Int_(42)],
+					Expr::Func_('inc', ['a'])
+					),
+				"{a = 42 : Int; inc a}",
+				['inc'],
+			],
+		];
 	}
 
 }
