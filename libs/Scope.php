@@ -144,7 +144,7 @@ class Scope implements Value, HasRefs
 	 */
 	private static function assertExprOfScope($src): void
 	{
-		if (is_string($src) || $src instanceof Expr || $src instanceof Composite) {
+		if (is_string($src) || $src instanceof Expr || $src instanceof Composite || $src instanceof Form) {
 			return;
 		}
 		throw new InvalidArgumentException("Support Expr | string: " . print_r($src, True));

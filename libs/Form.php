@@ -54,6 +54,22 @@ class Form implements Value, HasRefs
 
 
 
+	/**
+	 * match subject | Pattern binds -> expr | …
+	 *
+	 * items[0]   = subject (Value | string)
+	 * items[1..] = arms (object{pattern: string, binds: list<string>, expr: Value|string})
+	 *
+	 * @param Value|string $subject
+	 * @param list<object{pattern: string, binds: list<string>, expr: Value|string}> $arms
+	 */
+	static function Match_($subject, array $arms): self
+	{
+		return new self('match', array_merge([$subject], $arms));
+	}
+
+
+
 	function getName(): string
 	{
 		return $this->name;
@@ -74,6 +90,10 @@ class Form implements Value, HasRefs
 	 */
 	function refs(): array
 	{
+		if ($this->name === 'match') {
+			return $this->refsForMatch();
+		}
+
 		$xs = [];
 		foreach ($this->items as $row) {
 			if (isset($row->cond)) {
@@ -94,6 +114,44 @@ class Form implements Value, HasRefs
 			}
 		}
 		return array_unique($xs); // @phpstan-ignore return.type
+	}
+
+
+
+	/**
+	 * @return list<string>
+	 */
+	private function refsForMatch(): array
+	{
+		$xs = [];
+
+		// items[0] = subject
+		$subject = $this->items[0];
+		if (is_string($subject)) {
+			$xs[] = $subject;
+		}
+		elseif ($subject instanceof HasRefs) {
+			$xs = array_merge($xs, $subject->refs());
+		}
+
+		// items[1..] = arms; bound variable names are NOT free references
+		foreach (array_slice($this->items, 1) as $arm) {
+			$expr = $arm->expr;
+			if (is_string($expr)) {
+				if ( ! in_array($expr, $arm->binds, True)) {
+					$xs[] = $expr;
+				}
+			}
+			elseif ($expr instanceof HasRefs) {
+				foreach ($expr->refs() as $r) {
+					if ( ! in_array($r, $arm->binds, True)) {
+						$xs[] = $r;
+					}
+				}
+			}
+		}
+
+		return array_values(array_unique($xs));
 	}
 
 
