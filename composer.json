@@ -1,6 +1,6 @@
 {
 	"name": "tacoberu/hayo-ast",
-	"description": "...",
+	"description": "Abstract Syntax Tree (AST) implementation for the Hayo scripting language.",
 	"type": "library",
 	"require": {
 		"php" : ">=7.4"
