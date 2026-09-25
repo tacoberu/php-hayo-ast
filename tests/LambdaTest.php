@@ -83,4 +83,54 @@ class LambdaTest extends TestCase
 		$this->assertSame(['list.map', '*'], $inst->refs());
 	}
 
+
+
+	/**
+	 * Issue F2: `it.quantity` is a single, bareword-dotted-path IDENTIFIER
+	 * token (the lexer glues the dot in, see HayoLexer::IDENTIFIER) — never
+	 * its own AST node. As a plain string ref, an exact `in_array` match
+	 * against the lambda's own args ('it') misses it; the path's root
+	 * ('it') needs to be checked instead, or it leaks out as a spurious
+	 * free variable.
+	 */
+	function testPathRootedInOwnArgIsNotAFreeVariable()
+	{
+		// Path is the whole body: no operator to hide it behind — this
+		// direction already worked before the fix (see below), but is
+		// pinned here too.
+		$inst = new Lambda(['it'], 'it.quantity');
+		$this->assertSame(['it'], $inst->refs());
+	}
+
+
+
+	function testPathRootedInOwnArgInsideBinaryExprIsNotAFreeVariable()
+	{
+		// `(acc it -> acc + it.quantity)` — this is the exact shape that
+		// leaked: `it.quantity` as an *operand* of a binary expression.
+		$inst = new Lambda(['acc', 'it'], Expr::Bin_('acc', '+', 'it.quantity'));
+		$this->assertSame("(acc it) -> acc + it.quantity", (string) $inst);
+		$this->assertSame(['+', 'acc', 'it'], $inst->refs());
+	}
+
+
+
+	function testPathRootedInArgOfNestedLambdaDoesNotLeakToContainingExpr()
+	{
+		// `list.fold xs 0 (acc it -> acc + it.quantity)` — this is how the
+		// leak actually surfaced: Expr::refs() computes the refs a nested
+		// Lambda contributes to its *containing* expression as
+		// `array_diff($lambda->refs(), $lambda->getArgs())`. Before the
+		// fix, $lambda->refs() itself already (wrongly) contained
+		// 'it.quantity', which survives that diff against ['acc', 'it']
+		// verbatim and leaks all the way up to the enclosing lambda
+		// (`xs -> {...}` in the original bug) as an extra required bind.
+		$inst = Expr::Func_('list.fold', [
+			'xs',
+			Scalar::Int_(0),
+			new Lambda(['acc', 'it'], Expr::Bin_('acc', '+', 'it.quantity')),
+			]);
+		$this->assertSame(['list.fold', 'xs', '+'], $inst->refs());
+	}
+
 }

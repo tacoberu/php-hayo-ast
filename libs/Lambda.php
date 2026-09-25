@@ -82,7 +82,7 @@ class Lambda implements Value, HasRefs, Applicable
 		$xs = [];
 		if ($this->expr instanceof HasRefs) {
 			foreach ($this->expr->refs() as $x) {
-				if ( ! in_array($x, $this->args, True)) {
+				if ( ! self::isCoveredByArgs($x, $this->args)) {
 					$xs[] = $x;
 				}
 			}
@@ -129,6 +129,33 @@ class Lambda implements Value, HasRefs, Applicable
 			return;
 		}
 		throw new InvalidArgumentException("Support Value | string: " . print_r($src, True)); // @phpstan-ignore deadCode.unreachable
+	}
+
+
+
+	/**
+	 * Whether $ref is exactly one of $args, or a dotted path rooted in one
+	 * of them. A bareword path like `it.quantity` is lexed as a single
+	 * IDENTIFIER token (dots included), so it never becomes its own AST
+	 * node — it stays a plain string ref, and `in_array($ref, $args, True)`
+	 * alone would miss that `it.quantity` is already bound by an arg named
+	 * `it` (the compiler resolves it the same way at runtime, by splitting
+	 * off everything before the first dot — see BindValue::isPath()).
+	 * Without this, `it.quantity` used inside an arithmetic/binary
+	 * expression in a lambda nested inside another lambda leaks out as a
+	 * spurious free variable of the *outer* one.
+	 *
+	 * @param list<string> $args
+	 */
+	private static function isCoveredByArgs(string $ref, array $args): bool
+	{
+		foreach ($args as $arg) {
+			if (is_string($arg) // @phpstan-ignore function.alreadyNarrowedType
+					&& ($ref === $arg || strncmp($ref, $arg . '.', strlen($arg) + 1) === 0)) {
+				return True;
+			}
+		}
+		return False;
 	}
 
 
